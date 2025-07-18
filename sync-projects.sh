@@ -241,11 +241,152 @@ usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -h, --help     Show this help message"
-    echo "  -q, --quick    Quick sync (only sync existing repos, non-interactive)"
-    echo "  -s, --status   Show status of all repositories"
+    echo "  -h, --help      Show this help message"
+    echo "  -q, --quick     Quick sync (only sync existing repos, non-interactive)"
+    echo "  -s, --status    Show status of all repositories"
+    echo "  -b, --bootstrap Bootstrap analysis for new machine setup"
     echo ""
     echo "Default behavior: Interactive sync of all projects"
+}
+
+# Bootstrap analysis for new machine setup
+bootstrap_analysis() {
+    log "🔍 Analyzing current setup for bootstrap..."
+    
+    check_gh_cli
+    
+    cd "$PROJECTS_DIR"
+    
+    # Header
+    echo -e "\n${BLUE}📊 Bootstrap Analysis Report${NC}"
+    echo -e "${BLUE}═══════════════════════════════${NC}"
+    
+    # Table header
+    printf "%-20s %-15s %-15s %-20s\n" "Project" "Local Status" "GitHub Status" "Proposed Action"
+    echo "────────────────────────────────────────────────────────────────────────────"
+    
+    local action_count=0
+    local actions=()
+    
+    # Scan local directories
+    for dir in */; do
+        if [ -d "$dir" ]; then
+            repo_name=$(basename "$dir")
+            repo_path="$PROJECTS_DIR/$repo_name"
+            
+            if [[ $repo_name == .* ]]; then
+                continue
+            fi
+            
+            local_status=""
+            github_status=""
+            proposed_action=""
+            
+            # Check local status
+            if [ -d "$repo_path/.git" ]; then
+                if git -C "$repo_path" remote get-url origin &> /dev/null; then
+                    local_status="Git+Remote"
+                else
+                    local_status="Git Only"
+                fi
+            else
+                local_status="No Git"
+            fi
+            
+            # Check GitHub status
+            if repo_exists "$repo_name"; then
+                github_status="Exists"
+            else
+                github_status="Missing"
+            fi
+            
+            # Determine proposed action
+            if [ "$local_status" = "Git+Remote" ] && [ "$github_status" = "Exists" ]; then
+                proposed_action="Sync"
+            elif [ "$local_status" = "Git Only" ] && [ "$github_status" = "Missing" ]; then
+                proposed_action="Create GitHub"
+                action_count=$((action_count + 1))
+            elif [ "$local_status" = "No Git" ] && [ "$github_status" = "Exists" ]; then
+                proposed_action="Clone (backup local)"
+                action_count=$((action_count + 1))
+            elif [ "$local_status" = "No Git" ] && [ "$github_status" = "Missing" ]; then
+                proposed_action="Create both"
+                action_count=$((action_count + 1))
+            else
+                proposed_action="Review needed"
+                action_count=$((action_count + 1))
+            fi
+            
+            printf "%-20s %-15s %-15s %-20s\n" "$repo_name" "$local_status" "$github_status" "$proposed_action"
+            actions+=("$repo_name:$proposed_action")
+        fi
+    done
+    
+    # Check for GitHub repos not present locally
+    echo -e "\n${BLUE}🔍 Checking for GitHub repos not present locally...${NC}"
+    
+    # Get list of user's repositories
+    local missing_repos=()
+    if command -v gh &> /dev/null && gh auth status &> /dev/null; then
+        while read -r repo_name; do
+            if [ ! -d "$PROJECTS_DIR/$repo_name" ]; then
+                printf "%-20s %-15s %-15s %-20s\n" "$repo_name" "Missing" "Exists" "Clone"
+                missing_repos+=("$repo_name")
+                action_count=$((action_count + 1))
+            fi
+        done < <(gh repo list "$GITHUB_USERNAME" --limit 100 --json name -q '.[].name')
+    fi
+    
+    echo
+    if [ $action_count -eq 0 ]; then
+        echo -e "${GREEN}✅ All projects are already in sync!${NC}"
+    else
+        echo -e "${YELLOW}📋 Found $action_count projects that need attention${NC}"
+        echo
+        echo "Choose an action:"
+        echo "  ${GREEN}a${NC} - Accept all proposed actions"
+        echo "  ${YELLOW}s${NC} - Selective mode (choose individually)"
+        echo "  ${BLUE}c${NC} - Clone missing repos only"
+        echo "  ${RED}q${NC} - Quit without changes"
+        echo
+        read -p "Your choice [a/s/c/q]: " -n 1 -r
+        echo
+        
+        case $REPLY in
+            a|A)
+                log "Executing all proposed actions..."
+                sync_all_projects
+                ;;
+            s|S)
+                log "Entering selective mode..."
+                sync_all_projects  # This already has interactive prompts
+                ;;
+            c|C)
+                log "Cloning missing repositories only..."
+                clone_missing_repos
+                ;;
+            q|Q)
+                log "Bootstrap cancelled by user"
+                ;;
+            *)
+                error "Invalid choice"
+                ;;
+        esac
+    fi
+}
+
+# Clone missing repositories only
+clone_missing_repos() {
+    cd "$PROJECTS_DIR"
+    
+    if command -v gh &> /dev/null && gh auth status &> /dev/null; then
+        gh repo list "$GITHUB_USERNAME" --limit 100 --json name -q '.[].name' | while read -r repo_name; do
+            if [ ! -d "$PROJECTS_DIR/$repo_name" ]; then
+                info "Cloning $repo_name..."
+                gh repo clone "$GITHUB_USERNAME/$repo_name" "$repo_name"
+            fi
+        done
+    fi
 }
 
 # Show repository status
@@ -313,6 +454,9 @@ case "${1:-}" in
         ;;
     -s|--status)
         show_status
+        ;;
+    -b|--bootstrap)
+        bootstrap_analysis
         ;;
     "")
         sync_all_projects
