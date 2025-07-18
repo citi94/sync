@@ -245,6 +245,207 @@ To modify the script behavior:
 - Modify `PROJECTS_DIR` if your projects are elsewhere
 - Adjust git ignore patterns as needed
 
+## 🔄 iCloud Migration Plan for Sensitive Projects
+
+### Overview
+
+For macOS users with multiple machines, iCloud provides secure sync for sensitive projects (API keys, credentials, private tools) while keeping GitHub for public/deployable projects.
+
+### Current Status (2025-07-18)
+
+**✅ GitHub Synced Projects (15 total):**
+- MOT_Check, bill_calculator, bvm_98, bvmapp, bvmdeal, coffee_orders, evcompare, order_coffee, sync, whisper, mot_insert, james, charger_calculator, catcounter, test_playground
+
+**🔒 Candidates for iCloud Sync:**
+- `starling/` - Banking integration with API keys and private keys
+- Any future projects with sensitive credentials
+- Development tools and scripts
+- Local configuration files
+
+### Migration Strategy
+
+#### Phase 1: Preparation (BEFORE moving files)
+
+**On Current Machine (Machine A):**
+1. **Document sensitive files** in each project:
+   ```bash
+   find starling/ -name "*key*" -o -name "*api*" -o -name "*secret*" -o -name "*token*"
+   ```
+
+2. **Create backup inventory:**
+   ```bash
+   ls -la starling/ > ~/Desktop/starling_inventory_machineA.txt
+   ```
+
+3. **Check for uncommitted changes:**
+   ```bash
+   # From Projects directory
+   for dir in */; do 
+     if [ -d "$dir/.git" ]; then 
+       echo "=== $dir ==="; 
+       cd "$dir" && git status --porcelain && cd ..; 
+     fi; 
+   done
+   ```
+
+#### Phase 2: iCloud Setup
+
+**Create iCloud Structure:**
+```
+~/Library/Mobile Documents/com~apple~CloudDocs/
+├── Development/
+│   ├── Private-Projects/
+│   │   └── starling/           # Full project with credentials
+│   ├── Config/
+│   │   ├── ssh-keys/
+│   │   └── api-credentials/
+│   └── Scripts/
+│       └── automation-tools/
+└── Sync-Staging/               # Temporary staging area
+```
+
+#### Phase 3: Migration Process
+
+**Step 1: Create iCloud Development Folder**
+```bash
+mkdir -p ~/Library/Mobile\ Documents/com~apple~CloudDocs/Development/Private-Projects
+mkdir -p ~/Library/Mobile\ Documents/com~apple~CloudDocs/Development/Sync-Staging
+```
+
+**Step 2: Move Sensitive Projects to Staging**
+```bash
+# Copy (don't move yet) to staging
+cp -r ~/Projects/starling ~/Library/Mobile\ Documents/com~apple~CloudDocs/Development/Sync-Staging/
+```
+
+**Step 3: Wait for iCloud Sync (CRITICAL)**
+- **Wait 10-15 minutes** for iCloud to fully sync
+- **Verify on iPhone/iPad** that files appear in Files app
+- **Check file sizes** match original
+
+**Step 4: Verify on Other Machine (Machine B)**
+1. **Check iCloud sync status:**
+   ```bash
+   ls -la ~/Library/Mobile\ Documents/com~apple~CloudDocs/Development/Sync-Staging/
+   ```
+
+2. **Compare inventories:**
+   ```bash
+   ls -la ~/Library/Mobile\ Documents/com~apple~CloudDocs/Development/Sync-Staging/starling/ > ~/Desktop/starling_inventory_machineB.txt
+   diff ~/Desktop/starling_inventory_machineA.txt ~/Desktop/starling_inventory_machineB.txt
+   ```
+
+**Step 5: Final Migration (Only after verification)**
+```bash
+# On both machines, move from staging to final location
+mv ~/Library/Mobile\ Documents/com~apple~CloudDocs/Development/Sync-Staging/starling ~/Library/Mobile\ Documents/com~apple~CloudDocs/Development/Private-Projects/
+
+# Remove from Projects directory (keep backup first!)
+mv ~/Projects/starling ~/Projects/starling.backup.$(date +%Y%m%d)
+```
+
+#### Phase 4: Create Symlinks (Optional)
+
+**For convenience, create symlinks in Projects directory:**
+```bash
+ln -s ~/Library/Mobile\ Documents/com~apple~CloudDocs/Development/Private-Projects/starling ~/Projects/starling
+```
+
+### Conflict Resolution Strategy
+
+#### If Duplicates Exist on Both Machines:
+
+**Scenario A: Different Files**
+1. **Rename both versions:**
+   ```bash
+   mv starling starling-machineA
+   mv starling starling-machineB
+   ```
+
+2. **Manual merge:**
+   - Compare file-by-file
+   - Use newer API keys (check creation dates)
+   - Merge any code changes manually
+
+**Scenario B: Same Project, Different States**
+1. **Use git to help (if initialized):**
+   ```bash
+   cd starling-machineA && git status
+   cd starling-machineB && git status
+   ```
+
+2. **Merge strategy:**
+   - Keep the version with more recent commits
+   - Copy any machine-specific config files
+   - Update credentials to latest versions
+
+### Safety Measures
+
+**Before Any Migration:**
+1. **Time Machine backup** both machines
+2. **Manual backup** to external drive:
+   ```bash
+   cp -r ~/Projects ~/Desktop/Projects-Backup-$(date +%Y%m%d)
+   ```
+
+**During Migration:**
+1. **Never delete originals** until verified on both machines
+2. **Test iCloud sync** with a small test file first
+3. **Document everything** in staging notes
+
+**After Migration:**
+1. **Test applications** work from new locations
+2. **Update any hardcoded paths** in scripts
+3. **Verify credentials** still work
+
+### Emergency Rollback Plan
+
+**If iCloud Migration Fails:**
+1. **Stop sync system:**
+   ```bash
+   # Disable iCloud sync temporarily
+   ```
+
+2. **Restore from backup:**
+   ```bash
+   cp -r ~/Desktop/Projects-Backup-YYYYMMDD/* ~/Projects/
+   ```
+
+3. **Resume GitHub sync:**
+   ```bash
+   cd ~/Projects/sync && ./sync-projects.sh --status
+   ```
+
+### Post-Migration Benefits
+
+**Security:**
+- ✅ API keys never touch GitHub
+- ✅ End-to-end encryption via iCloud
+- ✅ Automatic backup to Apple servers
+
+**Convenience:**
+- ✅ Instant sync across all Apple devices
+- ✅ Access from iPhone/iPad for reference
+- ✅ No manual git operations needed
+
+**Organization:**
+- ✅ Clear separation of public vs private projects
+- ✅ GitHub for collaboration/deployment
+- ✅ iCloud for personal/sensitive tools
+
+### Recommended Timeline
+
+**Day 1:** Preparation and backup
+**Day 2:** Create iCloud structure and test sync
+**Day 3:** Migration and verification  
+**Day 4:** Testing and optimization
+
+**⚠️ Critical Success Factors:**
+1. **Never rush** - iCloud sync takes time
+2. **Always verify** before deleting originals  
+3. **Test thoroughly** after migration
+4. **Keep backups** until 100% confident
+
 ## License
 
 MIT License - Feel free to modify and distribute.
