@@ -12,7 +12,6 @@ This sync system ensures all your projects are synchronized between multiple com
 ## Files
 
 - `sync-projects.sh` - Main GitHub sync script for project code
-- `sync-claude.sh` - Claude Code conversation sync over Tailscale SSH
 - `bootstrap.sh` - One-liner setup for new machines
 - `sync.log` - Log file for all sync operations (gitignored)
 
@@ -83,31 +82,36 @@ Analyzes current setup for new machine bootstrap:
 
 ## Claude Code Conversation Sync
 
-Syncs `~/.claude/` (Claude Code conversations) between machines over Tailscale SSH.
+Syncs `~/.claude/` (Claude Code conversations) automatically between machines using **Syncthing**.
 
 **Primary machine:** `mac-mini` (always on, stores all conversations)
 
-### Usage
+### Setup
 
+**1. Install Syncthing on each machine:**
 ```bash
-# On secondary machines (MacBook, Linux, etc.)
-
-# Pull conversations FROM mac-mini
-./sync-claude.sh pull
-
-# Push local conversations TO mac-mini
-./sync-claude.sh push
-
-# Bidirectional sync (pull then push)
-./sync-claude.sh sync
-
-# Show conversation stats
-./sync-claude.sh status
+brew install syncthing
+brew services start syncthing
 ```
 
-### Requirements
-- Tailscale installed and connected on all machines
-- SSH access to mac-mini via Tailscale (`tailscale ssh mac-mini` must work)
+**2. Access Web UI:** http://127.0.0.1:8384
+
+**3. Add remote device:**
+- Mac Mini Device ID: `RX4OYLQ-YZNAZ6V-5C3VTHZ-UTSYUJU-EWMAF5R-ITSXIDA-7VJMG7C-3DDCSQX`
+- Click "Add Remote Device" and enter the device ID
+- Accept the connection request on both machines
+
+**4. Share the ~/.claude folder:**
+- Click "Add Folder"
+- Folder ID: `claude-sync`
+- Folder Path: `/Users/[username]/.claude`
+- Share with: select your other devices
+
+### How It Works
+- Syncthing runs as a background service
+- Changes sync automatically within seconds
+- Works over local network or internet (via relay if needed)
+- End-to-end encrypted
 
 ### What Gets Synced
 - `~/.claude/projects/` - All conversation transcripts
@@ -116,8 +120,23 @@ Syncs `~/.claude/` (Claude Code conversations) between machines over Tailscale S
 - `~/.claude/settings.json` - Settings
 
 ### What Doesn't Get Synced
-- `.credentials.json` - Local auth (each machine has its own)
-- `statsig/` - Analytics cache
+Add to `.stignore` in `~/.claude/`:
+```
+.credentials.json
+statsig/
+```
+
+### Useful Commands
+```bash
+# Check Syncthing status
+brew services list | grep syncthing
+
+# Restart Syncthing
+brew services restart syncthing
+
+# View logs
+tail -f ~/Library/Application\ Support/Syncthing/syncthing.log
+```
 
 ## 🚀 New Machine Bootstrap
 
