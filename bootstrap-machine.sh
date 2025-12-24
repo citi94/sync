@@ -189,19 +189,17 @@ fi
 
 # Add gsync function if not present
 if ! grep -q "gsync()" "$SHELL_RC" 2>/dev/null; then
-    cat >> "$SHELL_RC" << 'EOF'
-
-# ===== Project sync command =====
-gsync() {
-    if [ -f ~/projects/sync/sync-projects.sh ]; then
-        echo "🔄 Syncing projects with GitHub..."
-        (cd ~/projects && ./sync/sync-projects.sh --quick)
-        echo "✅ Done"
-    else
-        echo "❌ Sync script not found"
-    fi
-}
-EOF
+    echo '' >> "$SHELL_RC"
+    echo '# ===== Project sync command =====' >> "$SHELL_RC"
+    echo 'gsync() {' >> "$SHELL_RC"
+    echo '    if [ -f ~/projects/sync/sync-projects.sh ]; then' >> "$SHELL_RC"
+    echo '        echo "🔄 Syncing projects with GitHub..."' >> "$SHELL_RC"
+    echo '        (cd ~/projects && ./sync/sync-projects.sh --quick)' >> "$SHELL_RC"
+    echo '        echo "✅ Done"' >> "$SHELL_RC"
+    echo '    else' >> "$SHELL_RC"
+    echo '        echo "❌ Sync script not found"' >> "$SHELL_RC"
+    echo '    fi' >> "$SHELL_RC"
+    echo '}' >> "$SHELL_RC"
     echo -e "${GREEN}✓ gsync command added to $SHELL_RC${NC}"
 else
     echo -e "${GREEN}✓ gsync command already configured${NC}"
