@@ -187,12 +187,12 @@ else
     SHELL_RC="$HOME/.bashrc"
 fi
 
-# Add sync function if not present
-if ! grep -q "# ===== Project sync command =====" "$SHELL_RC" 2>/dev/null; then
+# Add gsync function if not present
+if ! grep -q "gsync()" "$SHELL_RC" 2>/dev/null; then
     cat >> "$SHELL_RC" << 'EOF'
 
 # ===== Project sync command =====
-sync() {
+gsync() {
     if [ -f ~/projects/sync/sync-projects.sh ]; then
         echo "🔄 Syncing projects with GitHub..."
         (cd ~/projects && ./sync/sync-projects.sh --quick)
@@ -202,9 +202,9 @@ sync() {
     fi
 }
 EOF
-    echo -e "${GREEN}✓ sync command added to $SHELL_RC${NC}"
+    echo -e "${GREEN}✓ gsync command added to $SHELL_RC${NC}"
 else
-    echo -e "${GREEN}✓ sync command already configured${NC}"
+    echo -e "${GREEN}✓ gsync command already configured${NC}"
 fi
 
 # ===== Done =====
@@ -227,5 +227,5 @@ fi
 echo ""
 echo -e "${BLUE}To start working:${NC}"
 echo "  source $SHELL_RC"
-echo "  sync     # Sync GitHub projects"
+echo "  gsync    # Sync GitHub projects"
 echo "  claude   # Start Claude Code"
