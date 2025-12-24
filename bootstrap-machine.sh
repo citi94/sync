@@ -126,32 +126,42 @@ else
     # Create ~/.claude if needed
     mkdir -p ~/.claude
 
-    # Check if Mac Mini device already added
+    # Get this device's ID
+    MY_DEVICE_ID=$(curl -s -H "X-API-Key: $API_KEY" "$API_URL/system/status" 2>/dev/null | grep -o '"myID":"[^"]*"' | cut -d'"' -f4)
+    MY_HOSTNAME=$(hostname)
+
+    # Check if Mac Mini device already added locally
     if curl -s -H "X-API-Key: $API_KEY" "$API_URL/config/devices" 2>/dev/null | grep -q "$MAC_MINI_DEVICE_ID"; then
-        echo -e "${GREEN}✓ Mac Mini already configured${NC}"
+        echo -e "${GREEN}✓ Mac Mini already configured locally${NC}"
     else
         # Add Mac Mini device
         curl -s -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
             "$API_URL/config/devices" \
             -d "{\"deviceID\": \"$MAC_MINI_DEVICE_ID\", \"name\": \"$MAC_MINI_NAME\", \"addresses\": [\"dynamic\"], \"autoAcceptFolders\": true}" \
-            2>/dev/null && echo -e "${GREEN}✓ Mac Mini device added${NC}" || echo -e "${YELLOW}! Could not add device via API${NC}"
+            2>/dev/null && echo -e "${GREEN}✓ Mac Mini device added locally${NC}" || echo -e "${YELLOW}! Could not add device via API${NC}"
     fi
 
-    # Check if claude-sync folder exists
+    # Check if claude-sync folder exists locally
     if curl -s -H "X-API-Key: $API_KEY" "$API_URL/config/folders" 2>/dev/null | grep -q "claude-sync"; then
-        echo -e "${GREEN}✓ claude-sync folder already configured${NC}"
+        echo -e "${GREEN}✓ claude-sync folder already configured locally${NC}"
     else
-        # Get this device's ID
-        MY_DEVICE_ID=$(curl -s -H "X-API-Key: $API_KEY" "$API_URL/system/status" 2>/dev/null | grep -o '"myID":"[^"]*"' | cut -d'"' -f4)
-
         # Add claude-sync folder
         curl -s -X POST -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" \
             "$API_URL/config/folders" \
             -d "{\"id\": \"claude-sync\", \"label\": \"Claude Code\", \"path\": \"$HOME/.claude\", \"devices\": [{\"deviceID\": \"$MY_DEVICE_ID\"}, {\"deviceID\": \"$MAC_MINI_DEVICE_ID\"}]}" \
-            2>/dev/null && echo -e "${GREEN}✓ claude-sync folder added${NC}" || echo -e "${YELLOW}! Could not add folder via API${NC}"
+            2>/dev/null && echo -e "${GREEN}✓ claude-sync folder added locally${NC}" || echo -e "${YELLOW}! Could not add folder via API${NC}"
     fi
 
-    echo -e "${YELLOW}! Accept the connection request on Mac Mini (http://mac-mini:8384)${NC}"
+    # Register this device on Mac Mini via Tailscale SSH
+    echo -e "${BLUE}Registering with Mac Mini via Tailscale...${NC}"
+    if ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new mac-mini "~/projects/sync/add-syncthing-device.sh '$MY_DEVICE_ID' '$MY_HOSTNAME'" 2>/dev/null; then
+        echo -e "${GREEN}✓ Registered with Mac Mini - sync will start automatically${NC}"
+        REGISTERED=true
+    else
+        echo -e "${YELLOW}! Could not reach Mac Mini via Tailscale SSH${NC}"
+        echo "  You'll need to accept this device manually on Mac Mini"
+        REGISTERED=false
+    fi
 fi
 
 # ===== Setup GitHub Sync =====
@@ -197,30 +207,25 @@ else
     echo -e "${GREEN}✓ sync command already configured${NC}"
 fi
 
-# Get this device's name and ID for display
-MY_DEVICE_ID=$(syncthing cli show system 2>/dev/null | grep -o '"myID":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-MY_HOSTNAME=$(hostname)
-
 # ===== Done =====
 echo ""
 echo -e "${GREEN}=== Bootstrap Complete ===${NC}"
 echo ""
-echo -e "${YELLOW}On Mac Mini (http://mac-mini:8384 or http://127.0.0.1:8384):${NC}"
+
+if [ "$REGISTERED" = true ]; then
+    echo -e "${GREEN}Syncthing is configured and will sync automatically.${NC}"
+    echo ""
+    echo "Your ~/.claude folder will sync with Mac Mini within a few minutes."
+else
+    echo -e "${YELLOW}Manual step required on Mac Mini:${NC}"
+    echo ""
+    echo "  1. Open http://mac-mini:8384 (or http://127.0.0.1:8384 on Mac Mini)"
+    echo "  2. Accept the 'New Device' request"
+    echo "  3. Share the 'claude-sync' folder with it"
+fi
+
 echo ""
-echo "  1. You'll see a banner: 'New Device' - click 'Add Device'"
-echo "     Device Name: $MY_HOSTNAME"
-echo "     Device ID:   ${MY_DEVICE_ID:0:7}..."
-echo ""
-echo "  2. In the 'Add Device' dialog:"
-echo "     - Check 'Auto Accept' under Sharing"
-echo "     - Under 'Sharing' tab, tick 'claude-sync' folder"
-echo "     - Click 'Save'"
-echo ""
-echo "  3. Back on THIS machine, you may see 'New Folder' - accept it"
-echo ""
-echo -e "${BLUE}Then on this machine:${NC}"
+echo -e "${BLUE}To start working:${NC}"
 echo "  source $SHELL_RC"
 echo "  sync     # Sync GitHub projects"
 echo "  claude   # Start Claude Code"
-echo ""
-echo "Syncthing Web UI (this machine): http://127.0.0.1:8384"
