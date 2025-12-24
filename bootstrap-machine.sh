@@ -197,13 +197,30 @@ else
     echo -e "${GREEN}✓ sync command already configured${NC}"
 fi
 
+# Get this device's name and ID for display
+MY_DEVICE_ID=$(syncthing cli show system 2>/dev/null | grep -o '"myID":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+MY_HOSTNAME=$(hostname)
+
 # ===== Done =====
 echo ""
 echo -e "${GREEN}=== Bootstrap Complete ===${NC}"
 echo ""
-echo "Next steps:"
-echo "  1. On Mac Mini: accept the device connection at http://127.0.0.1:8384"
-echo "  2. Run: source $SHELL_RC"
-echo "  3. Use 'sync' then 'claude' to start working"
+echo -e "${YELLOW}On Mac Mini (http://mac-mini:8384 or http://127.0.0.1:8384):${NC}"
 echo ""
-echo "Syncthing Web UI: http://127.0.0.1:8384"
+echo "  1. You'll see a banner: 'New Device' - click 'Add Device'"
+echo "     Device Name: $MY_HOSTNAME"
+echo "     Device ID:   ${MY_DEVICE_ID:0:7}..."
+echo ""
+echo "  2. In the 'Add Device' dialog:"
+echo "     - Check 'Auto Accept' under Sharing"
+echo "     - Under 'Sharing' tab, tick 'claude-sync' folder"
+echo "     - Click 'Save'"
+echo ""
+echo "  3. Back on THIS machine, you may see 'New Folder' - accept it"
+echo ""
+echo -e "${BLUE}Then on this machine:${NC}"
+echo "  source $SHELL_RC"
+echo "  sync     # Sync GitHub projects"
+echo "  claude   # Start Claude Code"
+echo ""
+echo "Syncthing Web UI (this machine): http://127.0.0.1:8384"
