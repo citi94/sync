@@ -11,8 +11,10 @@ This sync system ensures all your projects are synchronized between multiple com
 
 ## Files
 
-- `sync-projects.sh` - Main sync script
-- `sync.log` - Log file for all sync operations
+- `sync-projects.sh` - Main GitHub sync script for project code
+- `sync-claude.sh` - Claude Code conversation sync over Tailscale SSH
+- `bootstrap.sh` - One-liner setup for new machines
+- `sync.log` - Log file for all sync operations (gitignored)
 
 ## Setup
 
@@ -78,6 +80,44 @@ Analyzes current setup for new machine bootstrap:
 ```bash
 ./sync-projects.sh --help
 ```
+
+## Claude Code Conversation Sync
+
+Syncs `~/.claude/` (Claude Code conversations) between machines over Tailscale SSH.
+
+**Primary machine:** `mac-mini` (always on, stores all conversations)
+
+### Usage
+
+```bash
+# On secondary machines (MacBook, Linux, etc.)
+
+# Pull conversations FROM mac-mini
+./sync-claude.sh pull
+
+# Push local conversations TO mac-mini
+./sync-claude.sh push
+
+# Bidirectional sync (pull then push)
+./sync-claude.sh sync
+
+# Show conversation stats
+./sync-claude.sh status
+```
+
+### Requirements
+- Tailscale installed and connected on all machines
+- SSH access to mac-mini via Tailscale (`tailscale ssh mac-mini` must work)
+
+### What Gets Synced
+- `~/.claude/projects/` - All conversation transcripts
+- `~/.claude/history.jsonl` - Session metadata
+- `~/.claude/todos/` - Todo lists
+- `~/.claude/settings.json` - Settings
+
+### What Doesn't Get Synced
+- `.credentials.json` - Local auth (each machine has its own)
+- `statsig/` - Analytics cache
 
 ## 🚀 New Machine Bootstrap
 

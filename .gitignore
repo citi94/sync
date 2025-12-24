@@ -1,0 +1,9 @@
+# Logs
+*.log
+sync.log
+
+# OS files
+.DS_Store
+
+# Local settings
+*.local
